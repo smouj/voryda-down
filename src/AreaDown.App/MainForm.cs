@@ -427,13 +427,58 @@ internal sealed class SettingsForm : Form
     public AppSettings Settings { get; private set; }
     public SettingsForm(AppSettings settings)
     {
-        Settings = settings; Text = "Ajustes · Voryda Down"; FormBorderStyle = FormBorderStyle.FixedDialog; StartPosition = FormStartPosition.CenterParent; MinimizeBox = false; MaximizeBox = false; ClientSize = new Size(520, 225); BackColor = Color.FromArgb(246, 247, 249);
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(20), ColumnCount = 1, RowCount = 6 }; root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24)); root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24)); root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36)); root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); Controls.Add(root);
-        root.Controls.Add(new Label { Text = "Preferencias", Font = new Font("Segoe UI", 15, FontStyle.Bold), ForeColor = Color.FromArgb(30, 36, 42), Dock = DockStyle.Fill });
-        root.Controls.Add(new Label { Text = "Carpeta predeterminada", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(104, 114, 124) });
-        var folder = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 }; folder.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); folder.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86)); _folder.Text = settings.SaveFolder; _folder.Dock = DockStyle.Fill; _folder.ReadOnly = true; var browse = new Button { Text = "Cambiar…", Dock = DockStyle.Fill }; browse.Click += (_, _) => { using var d = new FolderBrowserDialog { SelectedPath = _folder.Text, Description = "Elige tu carpeta de descargas", UseDescriptionForTitle = true }; if (d.ShowDialog(this) == DialogResult.OK) _folder.Text = d.SelectedPath; }; folder.Controls.Add(_folder); folder.Controls.Add(browse); root.Controls.Add(folder);
-        root.Controls.Add(new Label { Text = "Plantilla del nombre de archivo (variables yt-dlp admitidas)", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(104, 114, 124) }); _filename.Text = settings.FileName; _filename.Dock = DockStyle.Fill; root.Controls.Add(_filename);
-        root.Controls.Add(new Label { Text = "Las preferencias de calidad, metadatos y subtítulos se guardan desde la pantalla principal.", Dock = DockStyle.Fill, ForeColor = Color.FromArgb(104, 114, 124) });
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft }; var save = new Button { Text = "Guardar", DialogResult = DialogResult.OK, Width = 100 }; save.Click += (_, _) => Settings = settings with { SaveFolder = _folder.Text, FileName = string.IsNullOrWhiteSpace(_filename.Text) ? "%(title)s.%(ext)s" : _filename.Text.Trim() }; var cancel = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel, Width = 100 }; actions.Controls.Add(save); actions.Controls.Add(cancel); root.Controls.Add(actions); AcceptButton = save; CancelButton = cancel;
+        Settings = settings;
+        Text = "Ajustes · Voryda Down";
+        FormBorderStyle = FormBorderStyle.FixedDialog;
+        StartPosition = FormStartPosition.CenterParent;
+        MinimizeBox = false;
+        MaximizeBox = false;
+        ClientSize = new Size(560, 330);
+        MinimumSize = new Size(500, 290);
+        BackColor = Color.FromArgb(246, 247, 249);
+
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(18), ColumnCount = 1, RowCount = 2 };
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+        Controls.Add(root);
+
+        var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White, Padding = new Padding(14) };
+        var content = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 1, RowCount = 6, Padding = new Padding(0, 0, 4, 4) };
+        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        foreach (var height in new[] { 40, 26, 40, 34, 40, 40 }) content.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        content.Controls.Add(new Label { Text = "Preferencias", Font = new Font("Segoe UI", 15, FontStyle.Bold), ForeColor = Color.FromArgb(30, 36, 42), Dock = DockStyle.Fill }, 0, 0);
+        content.Controls.Add(new Label { Text = "Carpeta predeterminada", ForeColor = Color.FromArgb(104, 114, 124), TextAlign = ContentAlignment.BottomLeft, Dock = DockStyle.Fill }, 0, 1);
+        var folder = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+        folder.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        folder.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
+        _folder.Text = settings.SaveFolder; _folder.Dock = DockStyle.Fill; _folder.ReadOnly = true;
+        var browse = new Button { Text = "Cambiar…", Dock = DockStyle.Fill };
+        browse.Click += (_, _) => { using var d = new FolderBrowserDialog { SelectedPath = _folder.Text, Description = "Elige tu carpeta de descargas", UseDescriptionForTitle = true }; if (d.ShowDialog(this) == DialogResult.OK) _folder.Text = d.SelectedPath; };
+        folder.Controls.Add(_folder); folder.Controls.Add(browse, 1, 0); content.Controls.Add(folder, 0, 2);
+        content.Controls.Add(new Label { Text = "Plantilla del nombre de archivo (variables yt-dlp admitidas)", ForeColor = Color.FromArgb(104, 114, 124), TextAlign = ContentAlignment.BottomLeft, Dock = DockStyle.Fill }, 0, 3);
+        _filename.Text = settings.FileName; _filename.Dock = DockStyle.Fill; content.Controls.Add(_filename, 0, 4);
+        content.Controls.Add(new Label { Text = "Calidad, metadatos y subtítulos se ajustan en la ventana principal.", ForeColor = Color.FromArgb(104, 114, 124), TextAlign = ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, 5);
+        scroll.Controls.Add(content);
+        void FitContent() => content.Width = Math.Max(220, scroll.ClientSize.Width - SystemInformation.VerticalScrollBarWidth);
+        scroll.Resize += (_, _) => FitContent();
+        root.Controls.Add(scroll, 0, 0);
+
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft, WrapContents = false, Padding = new Padding(0, 7, 0, 0) };
+        var save = new Button { Text = "Guardar", DialogResult = DialogResult.OK, Width = 104, Height = 34 };
+        save.Click += (_, _) => Settings = settings with { SaveFolder = _folder.Text, FileName = string.IsNullOrWhiteSpace(_filename.Text) ? "%(title)s.%(ext)s" : _filename.Text.Trim() };
+        var cancel = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel, Width = 104, Height = 34, Margin = new Padding(0, 0, 8, 0) };
+        actions.Controls.Add(save); actions.Controls.Add(cancel); root.Controls.Add(actions, 0, 1);
+        AcceptButton = save;
+        CancelButton = cancel;
+        Shown += (_, _) =>
+        {
+            var area = Screen.FromControl(this).WorkingArea;
+            var scale = Math.Max(1d, DeviceDpi / 96d);
+            var maxWidth = Math.Max(500, (int)Math.Floor(area.Width / scale));
+            var maxHeight = Math.Max(290, (int)Math.Floor(area.Height / scale));
+            MinimumSize = new Size(Math.Min(500, maxWidth), Math.Min(290, maxHeight));
+            Size = new Size(Math.Min(560, maxWidth), Math.Min(330, maxHeight));
+            FitContent();
+        };
     }
 }
