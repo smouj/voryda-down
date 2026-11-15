@@ -51,7 +51,7 @@ public sealed class MainForm : Form
     {
         _settings = AppSettings.Load();
         Text = "Voryda Down";
-        MinimumSize = new Size(920, 700);
+        MinimumSize = new Size(760, 560);
         Size = new Size(1180, 860);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Canvas;
@@ -79,7 +79,7 @@ public sealed class MainForm : Form
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 88));
         Controls.Add(root);
 
         var header = new Panel { Dock = DockStyle.Fill };
@@ -127,46 +127,44 @@ public sealed class MainForm : Form
         previewLayout.Controls.Add(timelinePanel, 0, 3); previewCard.Controls.Add(previewLayout); body.Controls.Add(previewCard, 0, 0);
 
         var optionsCard = Card(); optionsCard.Dock = DockStyle.Fill; optionsCard.Margin = new Padding(10, 0, 0, 0); optionsCard.Padding = new Padding(18, 16, 18, 14); optionsCard.AutoScroll = true;
-        var options = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(0, 0, 4, 4) };
-        void FitOptions()
-        {
-            options.Width = Math.Max(180, optionsCard.ClientSize.Width - 24);
-            foreach (Control child in options.Controls) child.Width = Math.Max(160, options.ClientSize.Width - 8);
-        }
-        optionsCard.Resize += (_, _) => FitOptions();
-        options.SizeChanged += (_, _) => FitOptions();
-        options.Controls.Add(Heading("OPCIONES DE DESCARGA"));
-        options.Controls.Add(FieldLabel("Calidad"));
-        _quality.DropDownStyle = ComboBoxStyle.DropDownList; _quality.Items.AddRange(["Mejor disponible (hasta 1080p)", "1080p", "720p", "480p", "Solo audio (M4A)"]); _quality.SelectedIndex = QualityToIndex(_settings.LastQuality); _quality.Dock = DockStyle.Top; _quality.Height = 32;
-        options.Controls.Add(_quality);
-        var clipLabel = FieldLabel("Recorte por tiempo · opcional"); clipLabel.Margin = new Padding(0, 12, 0, 3); options.Controls.Add(clipLabel);
-        var clipPanel = new TableLayoutPanel { Dock = DockStyle.Top, Height = 34, ColumnCount = 4, RowCount = 1 };
+        var options = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 1, RowCount = 15, GrowStyle = TableLayoutPanelGrowStyle.FixedSize, Padding = new Padding(0, 0, 4, 4) };
+        options.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        var optionRowHeights = new[] { 26, 23, 34, 27, 36, 27, 36, 27, 34, 27, 27, 27, 27, 38, 32 };
+        foreach (var height in optionRowHeights) options.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
+        options.Controls.Add(Heading("OPCIONES DE DESCARGA"), 0, 0);
+        options.Controls.Add(FieldLabel("Calidad"), 0, 1);
+        _quality.DropDownStyle = ComboBoxStyle.DropDownList; _quality.Items.AddRange(["Mejor disponible (hasta 1080p)", "1080p", "720p", "480p", "Solo audio (M4A)"]); _quality.SelectedIndex = QualityToIndex(_settings.LastQuality); _quality.Dock = DockStyle.Fill;
+        options.Controls.Add(_quality, 0, 2);
+        var clipLabel = FieldLabel("Recorte por tiempo · opcional"); clipLabel.Margin = new Padding(0, 4, 0, 0); options.Controls.Add(clipLabel, 0, 3);
+        var clipPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 1 };
         clipPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 40)); clipPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); clipPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34)); clipPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         _start.PlaceholderText = "00:00"; _end.PlaceholderText = "00:00"; _start.Dock = _end.Dock = DockStyle.Fill;
-        clipPanel.Controls.Add(new Label { Text = "De", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0); clipPanel.Controls.Add(_start, 1, 0); clipPanel.Controls.Add(new Label { Text = "a", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(8, 7, 0, 0) }, 2, 0); clipPanel.Controls.Add(_end, 3, 0); options.Controls.Add(clipPanel);
-        var folderLabel = FieldLabel("Guardar en"); folderLabel.Margin = new Padding(0, 12, 0, 3); options.Controls.Add(folderLabel);
-        var folderPanel = new TableLayoutPanel { Dock = DockStyle.Top, Height = 34, ColumnCount = 2 }; folderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); folderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 72));
+        clipPanel.Controls.Add(new Label { Text = "De", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 0); clipPanel.Controls.Add(_start, 1, 0); clipPanel.Controls.Add(new Label { Text = "a", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(8, 7, 0, 0) }, 2, 0); clipPanel.Controls.Add(_end, 3, 0); options.Controls.Add(clipPanel, 0, 4);
+        var folderLabel = FieldLabel("Guardar en"); folderLabel.Margin = new Padding(0, 4, 0, 0); options.Controls.Add(folderLabel, 0, 5);
+        var folderPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 }; folderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); folderPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
         _folder.Text = _settings.SaveFolder; _folder.Dock = DockStyle.Fill; _folder.ReadOnly = true;
-        _browseButton.Text = "Elegir…"; _browseButton.Dock = DockStyle.Fill; _browseButton.Click += BrowseButton_Click; folderPanel.Controls.Add(_folder); folderPanel.Controls.Add(_browseButton, 1, 0); options.Controls.Add(folderPanel);
-        var nameLabel = FieldLabel("Nombre de archivo"); nameLabel.Margin = new Padding(0, 12, 0, 3); options.Controls.Add(nameLabel);
-        _fileName.Text = _settings.FileName; _fileName.Dock = DockStyle.Top; _fileName.PlaceholderText = "%(title)s.%(ext)s"; options.Controls.Add(_fileName);
-        var extrasLabel = FieldLabel("Incluir en el archivo"); extrasLabel.Margin = new Padding(0, 12, 0, 3); options.Controls.Add(extrasLabel);
-        _embedMetadata.Text = "Metadatos del video"; _embedMetadata.Checked = _settings.EmbedMetadata; _embedMetadata.AutoSize = true; options.Controls.Add(_embedMetadata);
-        _embedThumbnail.Text = "Miniatura como portada (audio)"; _embedThumbnail.Checked = _settings.EmbedThumbnail; _embedThumbnail.AutoSize = true; options.Controls.Add(_embedThumbnail);
-        _subtitles.Text = "Subtítulos disponibles"; _subtitles.Checked = _settings.WriteSubtitles; _subtitles.AutoSize = true; options.Controls.Add(_subtitles);
-        var legal = new Label { Text = "Descarga solo contenido que tengas permiso para guardar.", ForeColor = Muted, AutoSize = true, Margin = new Padding(0, 12, 0, 0) }; options.Controls.Add(legal);
-        var projectLinks = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Margin = new Padding(0, 8, 0, 0) };
+        _browseButton.Text = "Elegir…"; _browseButton.Dock = DockStyle.Fill; _browseButton.Click += BrowseButton_Click; folderPanel.Controls.Add(_folder); folderPanel.Controls.Add(_browseButton, 1, 0); options.Controls.Add(folderPanel, 0, 6);
+        var nameLabel = FieldLabel("Nombre de archivo"); nameLabel.Margin = new Padding(0, 4, 0, 0); options.Controls.Add(nameLabel, 0, 7);
+        _fileName.Text = _settings.FileName; _fileName.Dock = DockStyle.Fill; _fileName.PlaceholderText = "%(title)s.%(ext)s"; options.Controls.Add(_fileName, 0, 8);
+        var extrasLabel = FieldLabel("Incluir en el archivo"); extrasLabel.Margin = new Padding(0, 4, 0, 0); options.Controls.Add(extrasLabel, 0, 9);
+        _embedMetadata.Text = "Metadatos del video"; _embedMetadata.Checked = _settings.EmbedMetadata; _embedMetadata.AutoSize = true; options.Controls.Add(_embedMetadata, 0, 10);
+        _embedThumbnail.Text = "Miniatura como portada (audio)"; _embedThumbnail.Checked = _settings.EmbedThumbnail; _embedThumbnail.AutoSize = true; options.Controls.Add(_embedThumbnail, 0, 11);
+        _subtitles.Text = "Subtítulos disponibles"; _subtitles.Checked = _settings.WriteSubtitles; _subtitles.AutoSize = true; options.Controls.Add(_subtitles, 0, 12);
+        var legal = new Label { Text = "Descarga solo contenido que tengas permiso para guardar.", ForeColor = Muted, AutoSize = true, Margin = new Padding(0, 2, 0, 0), Dock = DockStyle.Fill }; options.Controls.Add(legal, 0, 13);
+        var projectLinks = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, Margin = new Padding(0, 2, 0, 0) };
         foreach (var (caption, target) in new[] { ("Voryda Snap", "https://github.com/smouj/voryda-snap"), ("Voryda Rec", "https://github.com/smouj/voryda-rec"), ("Voryda Cut", "https://github.com/smouj/voryda-cut") })
         { var link = new LinkLabel { Text = caption, AutoSize = true, LinkColor = Green, Margin = new Padding(0, 0, 12, 0) }; link.LinkClicked += (_, _) => OpenLink(target); projectLinks.Controls.Add(link); }
-        options.Controls.Add(projectLinks);
+        options.Controls.Add(projectLinks, 0, 14);
+        void FitOptions() => options.Width = Math.Max(180, optionsCard.ClientSize.Width - SystemInformation.VerticalScrollBarWidth);
+        optionsCard.Resize += (_, _) => FitOptions();
         FitOptions();
         optionsCard.Controls.Add(options); body.Controls.Add(optionsCard, 1, 0); root.Controls.Add(body, 0, 2);
         _start.TextChanged += StartTextChanged;
         _end.TextChanged += StartTextChanged;
 
-        var footer = Card(); footer.Dock = DockStyle.Fill; footer.Padding = new Padding(14, 10, 14, 10); footer.Margin = new Padding(0, 14, 0, 0);
+        var footer = Card(); footer.Dock = DockStyle.Fill; footer.Padding = new Padding(14, 8, 14, 8); footer.Margin = new Padding(0, 12, 0, 0);
         var footerLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2 };
-        footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 102)); footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 108)); footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100)); footerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 55)); footerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
+        footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110)); footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110)); footerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110)); footerLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38)); footerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         _status.Text = "Listo para empezar"; _status.ForeColor = Ink; _status.Dock = DockStyle.Fill; _status.TextAlign = ContentAlignment.MiddleLeft;
         _downloadButton.Text = "Descargar"; StyleButton(_downloadButton, Green, Color.White); _downloadButton.Dock = DockStyle.Fill; _downloadButton.Click += async (_, _) => await DownloadButton_Click();
         _cancelButton.Text = "Cancelar"; StyleButton(_cancelButton, Color.FromArgb(245, 246, 247), Ink); _cancelButton.Dock = DockStyle.Fill; _cancelButton.Enabled = false; _cancelButton.Click += CancelButton_Click;
@@ -176,7 +174,18 @@ public sealed class MainForm : Form
         footerLayout.Controls.Add(_status, 0, 0); footerLayout.Controls.Add(_downloadButton, 1, 0); footerLayout.Controls.Add(_cancelButton, 2, 0); footerLayout.Controls.Add(openFolder, 3, 0);
         footerLayout.Controls.Add(_progress, 0, 1); footerLayout.SetColumnSpan(_progress, 2); footerLayout.Controls.Add(_toolStatus, 2, 1); footerLayout.SetColumnSpan(_toolStatus, 2);
         footer.Controls.Add(footerLayout); root.Controls.Add(footer, 0, 3);
-        Shown += (_, _) => RefreshToolStatus();
+        Shown += (_, _) => { FitWindowToWorkArea(); RefreshToolStatus(); };
+    }
+
+    private void FitWindowToWorkArea()
+    {
+        var area = Screen.FromControl(this).WorkingArea;
+        var scale = Math.Max(1d, DeviceDpi / 96d);
+        var maxWidth = Math.Max(760, (int)Math.Floor(area.Width / scale));
+        var maxHeight = Math.Max(560, (int)Math.Floor(area.Height / scale));
+        MinimumSize = new Size(Math.Min(760, maxWidth), Math.Min(560, maxHeight));
+        Size = new Size(Math.Min(1180, maxWidth), Math.Min(860, maxHeight));
+        CenterToScreen();
     }
 
     private async Task LoadPreviewAsync()

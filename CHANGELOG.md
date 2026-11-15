@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed clipped option labels and controls by replacing the auto-sized options flow with a width-aware grid and scroll area.
+- Gave the footer buttons a fixed-height row and sized the startup window to the display's working area and DPI.
 - Rebuilt the main window around a pre-download video preview with thumbnail and media details.
 - Added persistent filename, metadata, thumbnail and subtitle preferences.
 - Switched process invocation to structured arguments so URLs and paths with spaces or query strings are preserved.
