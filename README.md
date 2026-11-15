@@ -37,6 +37,8 @@
 ## Features
 
 - Preview title, channel, duration, upload date, thumbnail, approximate size and available resolutions before downloading.
+- Play the source page inside the app when the provider allows embedded playback.
+- Mark a clip by dragging the start and end handles on the timeline; timestamp fields stay synchronized for precise edits.
 - Download a video using Best, 1080p, 720p or 480p quality options.
 - Save the best available audio stream in M4A format.
 - Set optional start and end timestamps using seconds, <code>MM:SS</code> or <code>HH:MM:SS</code>.
@@ -54,10 +56,7 @@ The project metadata declares version **1.0.0**. No public GitHub Release or rel
 
 ## Screenshot
 
-A current screenshot will be added after visual verification of the rebuilt Windows app.
-
-
-*The screenshot shows the current Windows application.*
+A refreshed screenshot is pending visual verification of the rebuilt Windows app.
 
 ## Runtime dependencies
 
@@ -68,16 +67,16 @@ The app looks for its command-line tools in this order:
 | <code>yt-dlp.exe</code> | Application folder, <code>extraResources</code> folder, then system <code>PATH</code> |
 | <code>ffmpeg.exe</code> | Application folder, <code>extraResources</code> folder, then system <code>PATH</code> |
 
-Place the executables in one of those locations before using the corresponding workflow. yt-dlp is required for downloads. FFmpeg is needed when the selected streams or processing path require it.
+Place the executables in one of those locations before using the corresponding workflow. yt-dlp is required for downloads. FFmpeg is needed when the selected streams or processing path require it. Embedded playback uses the Microsoft Edge WebView2 Runtime; if playback is blocked or the runtime is unavailable, the app falls back to the video thumbnail.
 
 The available streams and extraction behavior depend on the source service and the installed yt-dlp version.
 
 ## Usage
 
 1. Enter an HTTP or HTTPS media URL and select **Ver video** to load its details.
-2. Review the thumbnail, title, channel, duration and the formats reported by yt-dlp.
+2. Review the embedded player or thumbnail, title, channel, duration and formats reported by yt-dlp.
 3. Select a video quality or **Audio only (M4A)**.
-4. Optionally set a start and end time, output filename and metadata/subtitle options.
+4. Drag the timeline handles to mark the wanted segment, or enter its start and end times. Set the output filename and metadata/subtitle options as needed.
 5. Choose the destination folder and start the download. Use **Cancelar** to stop it.
 
 Timestamp examples:
@@ -99,7 +98,8 @@ The <code>AreaDown</code> settings path and internal project names are retained 
 ## Requirements
 
 - Windows 10 version 2004 (build 19041) or later, or Windows 11.
-- .NET 8 Desktop Runtime to run a framework-dependent build.
+- .NET 8 Desktop Runtime to run a framework-dependent build. The documented self-contained build bundles .NET.
+- Microsoft Edge WebView2 Runtime for in-app playback; metadata and thumbnail preview remain available without it.
 - .NET 8 SDK to build from source.
 - yt-dlp for all downloads; FFmpeg for workflows that require merging or processing.
 

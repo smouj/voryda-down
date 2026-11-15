@@ -203,8 +203,7 @@ public sealed class YtDlpProcess : IDisposable
 
         // Progress template for machine-readable output
         args.Add("--progress-template");
-        args.Add("download:");
-        args.Add("%(progress.downloaded_bytes)s/%(progress.total_bytes)s %(progress.speed)s %(progress.eta)s");
+        args.Add("download:%(progress.downloaded_bytes)s/%(progress.total_bytes)s %(progress.speed)s %(progress.eta)s");
 
         // No playlist
         args.Add("--no-playlist");

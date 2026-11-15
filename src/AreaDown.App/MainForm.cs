@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Text.Json;
 using AreaDown.Core;
 using AreaDown.Downloader;
+using Microsoft.Web.WebView2.WinForms;
 
 namespace AreaDown.App;
 
@@ -23,6 +24,9 @@ public sealed class MainForm : Form
     private readonly CheckBox _embedThumbnail = new();
     private readonly CheckBox _subtitles = new();
     private readonly PictureBox _thumbnail = new();
+    private readonly WebView2 _videoPlayer = new();
+    private readonly ClipTimelineControl _timeline = new();
+    private readonly Label _clipTimes = new();
     private readonly Label _videoTitle = new();
     private readonly Label _videoInfo = new();
     private readonly Label _status = new();
@@ -38,6 +42,8 @@ public sealed class MainForm : Form
     private YtDlpProcess? _downloader;
     private bool _isDownloading;
     private bool _isLoadingPreview;
+    private bool _updatingTimelineFields;
+    private bool _playerNavigationHandlerAttached;
     private VideoPreview? _preview;
     private string? _previewUrl;
 
@@ -46,7 +52,7 @@ public sealed class MainForm : Form
         _settings = AppSettings.Load();
         Text = "Voryda Down";
         MinimumSize = new Size(920, 700);
-        Size = new Size(1080, 790);
+        Size = new Size(1180, 860);
         StartPosition = FormStartPosition.CenterScreen;
         BackColor = Canvas;
         Font = new Font("Segoe UI", 9f);
@@ -91,31 +97,44 @@ public sealed class MainForm : Form
         urlLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); urlLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
         _url.Dock = DockStyle.Fill; _url.Font = new Font("Segoe UI", 10); _url.BorderStyle = BorderStyle.FixedSingle; _url.PlaceholderText = "Pega aquí el enlace del video…"; _url.Text = _settings.LastUrl ?? "";
         _url.KeyDown += (_, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; _ = LoadPreviewAsync(); } };
+        _url.TextChanged += Url_TextChanged;
         _previewButton.Text = "Ver video"; StyleButton(_previewButton, Green, Color.White); _previewButton.Dock = DockStyle.Fill; _previewButton.Margin = new Padding(10, 0, 0, 0); _previewButton.Click += async (_, _) => await LoadPreviewAsync();
         urlLayout.Controls.Add(_url, 0, 0); urlLayout.Controls.Add(_previewButton, 1, 0); urlPanel.Controls.Add(urlLayout); root.Controls.Add(urlPanel, 0, 1);
 
         var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Padding = new Padding(0, 14, 0, 0) };
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58)); body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
         var previewCard = Card(); previewCard.Dock = DockStyle.Fill; previewCard.Margin = new Padding(0, 0, 10, 0); previewCard.Padding = new Padding(16);
-        var previewLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3 };
-        previewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26)); previewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 62)); previewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        var previewLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4 };
+        previewLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 26)); previewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 58)); previewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 25)); previewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 17));
         previewLayout.Controls.Add(Heading("VISTA PREVIA"), 0, 0);
-        var imageHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(236, 240, 241), Margin = new Padding(0, 8, 0, 10) };
+        var imageHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(20, 24, 28), Margin = new Padding(0, 8, 0, 10) };
         _thumbnail.Dock = DockStyle.Fill; _thumbnail.SizeMode = PictureBoxSizeMode.Zoom;
-        var imagePlaceholder = new Label { Text = "Pega un enlace y pulsa «Ver video»", ForeColor = Muted, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 11) };
-        imageHost.Controls.Add(_thumbnail); imageHost.Controls.Add(imagePlaceholder); imagePlaceholder.BringToFront();
+        var imagePlaceholder = new Label { Text = "Pega un enlace y pulsa «Ver video»", ForeColor = Color.White, BackColor = Color.FromArgb(20, 24, 28), Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 11) };
+        _videoPlayer.Dock = DockStyle.Fill; _videoPlayer.Visible = false;
+        imageHost.Controls.Add(_thumbnail); imageHost.Controls.Add(_videoPlayer); imageHost.Controls.Add(imagePlaceholder); imagePlaceholder.BringToFront();
         _thumbnail.Tag = imagePlaceholder;
         previewLayout.Controls.Add(imageHost, 0, 1);
         var details = new Panel { Dock = DockStyle.Fill };
         _videoTitle.Text = "Aún no hay ningún video"; _videoTitle.Font = new Font("Segoe UI", 14, FontStyle.Bold); _videoTitle.ForeColor = Ink; _videoTitle.Dock = DockStyle.Top; _videoTitle.Height = 48; _videoTitle.AutoEllipsis = true;
         _videoInfo.Text = "La vista previa mostrará título, canal, duración, fecha y formatos disponibles."; _videoInfo.ForeColor = Muted; _videoInfo.Dock = DockStyle.Fill;
         details.Controls.Add(_videoInfo); details.Controls.Add(_videoTitle);
-        previewLayout.Controls.Add(details, 0, 2); previewCard.Controls.Add(previewLayout); body.Controls.Add(previewCard, 0, 0);
+        previewLayout.Controls.Add(details, 0, 2);
+        var timelinePanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0, 4, 0, 0) };
+        timelinePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 60)); timelinePanel.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
+        _timeline.Dock = DockStyle.Fill; _timeline.Enabled = false; _timeline.RangeChanged += Timeline_RangeChanged;
+        _clipTimes.Text = "Fragmento · 00:00 — duración completa"; _clipTimes.ForeColor = Muted; _clipTimes.Dock = DockStyle.Fill; _clipTimes.TextAlign = ContentAlignment.MiddleLeft;
+        timelinePanel.Controls.Add(_timeline, 0, 0); timelinePanel.Controls.Add(_clipTimes, 0, 1);
+        previewLayout.Controls.Add(timelinePanel, 0, 3); previewCard.Controls.Add(previewLayout); body.Controls.Add(previewCard, 0, 0);
 
-        var optionsCard = Card(); optionsCard.Dock = DockStyle.Fill; optionsCard.Margin = new Padding(10, 0, 0, 0); optionsCard.Padding = new Padding(18, 16, 18, 14);
-        var options = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 15 };
-        options.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        for (var i = 0; i < 15; i++) options.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        var optionsCard = Card(); optionsCard.Dock = DockStyle.Fill; optionsCard.Margin = new Padding(10, 0, 0, 0); optionsCard.Padding = new Padding(18, 16, 18, 14); optionsCard.AutoScroll = true;
+        var options = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(0, 0, 4, 4) };
+        void FitOptions()
+        {
+            options.Width = Math.Max(180, optionsCard.ClientSize.Width - 24);
+            foreach (Control child in options.Controls) child.Width = Math.Max(160, options.ClientSize.Width - 8);
+        }
+        optionsCard.Resize += (_, _) => FitOptions();
+        options.SizeChanged += (_, _) => FitOptions();
         options.Controls.Add(Heading("OPCIONES DE DESCARGA"));
         options.Controls.Add(FieldLabel("Calidad"));
         _quality.DropDownStyle = ComboBoxStyle.DropDownList; _quality.Items.AddRange(["Mejor disponible (hasta 1080p)", "1080p", "720p", "480p", "Solo audio (M4A)"]); _quality.SelectedIndex = QualityToIndex(_settings.LastQuality); _quality.Dock = DockStyle.Top; _quality.Height = 32;
@@ -140,7 +159,10 @@ public sealed class MainForm : Form
         foreach (var (caption, target) in new[] { ("Voryda Snap", "https://github.com/smouj/voryda-snap"), ("Voryda Rec", "https://github.com/smouj/voryda-rec"), ("Voryda Cut", "https://github.com/smouj/voryda-cut") })
         { var link = new LinkLabel { Text = caption, AutoSize = true, LinkColor = Green, Margin = new Padding(0, 0, 12, 0) }; link.LinkClicked += (_, _) => OpenLink(target); projectLinks.Controls.Add(link); }
         options.Controls.Add(projectLinks);
+        FitOptions();
         optionsCard.Controls.Add(options); body.Controls.Add(optionsCard, 1, 0); root.Controls.Add(body, 0, 2);
+        _start.TextChanged += StartTextChanged;
+        _end.TextChanged += StartTextChanged;
 
         var footer = Card(); footer.Dock = DockStyle.Fill; footer.Padding = new Padding(14, 10, 14, 10); footer.Margin = new Padding(0, 14, 0, 0);
         var footerLayout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 4, RowCount = 2 };
@@ -170,11 +192,42 @@ public sealed class MainForm : Form
             _previewUrl = url;
             _videoTitle.Text = _preview.Title;
             _videoInfo.Text = string.Join("\r\n", new[] { _preview.Uploader, _preview.Duration, _preview.UploadDate, _preview.Resolution, _preview.FileSize, _preview.FormatSummary }.Where(x => !string.IsNullOrWhiteSpace(x)));
+            if (_preview.DurationSeconds is > 0)
+            {
+                _timeline.SetDuration(TimeSpan.FromSeconds(_preview.DurationSeconds.Value));
+                _timeline.Enabled = true;
+                UpdateTimelineFields();
+            }
             if (!string.IsNullOrWhiteSpace(_preview.ThumbnailUrl))
             {
                 using var client = new HttpClient(); var bytes = await client.GetByteArrayAsync(_preview.ThumbnailUrl);
                 using var stream = new MemoryStream(bytes); var image = Image.FromStream(stream); var previous = _thumbnail.Image; _thumbnail.Image = new Bitmap(image); previous?.Dispose();
                 if (_thumbnail.Tag is Control placeholder) placeholder.Visible = false;
+            }
+            if (!string.IsNullOrWhiteSpace(_preview.WebpageUrl))
+            {
+                try
+                {
+                    await _videoPlayer.EnsureCoreWebView2Async();
+                    if (!_playerNavigationHandlerAttached)
+                    {
+                        _videoPlayer.CoreWebView2.NavigationCompleted += (_, navigation) =>
+                        {
+                            if (!navigation.IsSuccess)
+                            {
+                                _videoPlayer.Visible = false;
+                                _thumbnail.Visible = true;
+                                if (_thumbnail.Tag is Control placeholder) placeholder.Visible = _thumbnail.Image is null;
+                            }
+                        };
+                        _playerNavigationHandlerAttached = true;
+                    }
+                    _videoPlayer.Source = new Uri(_preview.WebpageUrl);
+                    _videoPlayer.Visible = true;
+                    _thumbnail.Visible = false;
+                    if (_thumbnail.Tag is Control placeholder) placeholder.Visible = false;
+                }
+                catch { _videoPlayer.Visible = false; _thumbnail.Visible = true; }
             }
             _settings = _settings with { LastUrl = url }; AppSettings.Save(_settings);
             SetStatus("Vista previa lista · revisa los detalles antes de descargar");
@@ -182,6 +235,57 @@ public sealed class MainForm : Form
         catch (Exception ex) { _preview = null; _previewUrl = null; _videoTitle.Text = "No se pudo cargar la vista previa"; _videoInfo.Text = ex.Message; SetStatus("No se pudo consultar este enlace"); }
         finally { SetPreviewLoading(false); }
     }
+
+    private void Timeline_RangeChanged(object? sender, EventArgs e) => UpdateTimelineFields();
+
+    private void Url_TextChanged(object? sender, EventArgs e)
+    {
+        if (_previewUrl is null || string.Equals(_url.Text.Trim(), _previewUrl, StringComparison.Ordinal)) return;
+        _preview = null;
+        _previewUrl = null;
+        _timeline.Enabled = false;
+        _videoPlayer.Visible = false;
+        _thumbnail.Visible = true;
+        var old = _thumbnail.Image;
+        _thumbnail.Image = null;
+        old?.Dispose();
+        if (_thumbnail.Tag is Control placeholder) placeholder.Visible = true;
+        _videoTitle.Text = "Aún no hay ningún video";
+        _videoInfo.Text = "Carga la vista previa para ver sus detalles y seleccionar un fragmento.";
+        _start.Clear();
+        _end.Clear();
+    }
+
+    private void UpdateTimelineFields()
+    {
+        var start = _timeline.StartTime;
+        var end = _timeline.EndTime;
+        _updatingTimelineFields = true;
+        _start.Text = start > TimeSpan.Zero ? FormatTimestamp(start) : string.Empty;
+        _end.Text = end < _timeline.Duration ? FormatTimestamp(end) : string.Empty;
+        _updatingTimelineFields = false;
+        _clipTimes.Text = start <= TimeSpan.Zero && end >= _timeline.Duration
+            ? $"Fragmento · 00:00 — {FormatTimestamp(_timeline.Duration)} (completo)"
+            : $"Fragmento seleccionado · {FormatTimestamp(start)} — {FormatTimestamp(end)}";
+    }
+
+    private void StartTextChanged(object? sender, EventArgs e) => UpdateTimelineFromFields();
+
+    private void UpdateTimelineFromFields()
+    {
+        if (!_timeline.Enabled || _updatingTimelineFields) return;
+        if (!TimestampParser.TryParse(_start.Text, out var start) || !TimestampParser.TryParse(_end.Text, out var end)) return;
+        var startTime = start ?? TimeSpan.Zero;
+        var endTime = end ?? _timeline.Duration;
+        if (endTime >= startTime) _timeline.SetRange(startTime, endTime);
+        startTime = _timeline.StartTime;
+        endTime = _timeline.EndTime;
+        _clipTimes.Text = startTime <= TimeSpan.Zero && endTime >= _timeline.Duration
+            ? $"Fragmento · 00:00 — {FormatTimestamp(_timeline.Duration)} (completo)"
+            : $"Fragmento seleccionado · {FormatTimestamp(startTime)} — {FormatTimestamp(endTime)}";
+    }
+
+    private static string FormatTimestamp(TimeSpan value) => value.TotalHours >= 1 ? value.ToString(@"h\:mm\:ss") : value.ToString(@"m\:ss");
 
     private async Task DownloadButton_Click()
     {
@@ -293,18 +397,18 @@ public sealed class MainForm : Form
     private static Icon? LoadIcon() { try { var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "AreaDown.ico"); if (File.Exists(path)) return new Icon(path); path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "assets", "AreaDown.ico"); return File.Exists(path) ? new Icon(path) : null; } catch { return null; } }
 }
 
-internal sealed record VideoPreview(string Title, string? Uploader, string? Duration, string? UploadDate, string? Resolution, string? FileSize, string? ThumbnailUrl, string? FormatSummary)
+internal sealed record VideoPreview(string Title, string? Uploader, string? Duration, string? UploadDate, string? Resolution, string? FileSize, string? ThumbnailUrl, string? FormatSummary, string? WebpageUrl, double? DurationSeconds)
 {
     public static VideoPreview Parse(string json)
     {
         using var doc = JsonDocument.Parse(json); var root = doc.RootElement;
         string? Get(string name) => root.TryGetProperty(name, out var p) && p.ValueKind is not JsonValueKind.Null and not JsonValueKind.Undefined ? p.ToString() : null;
-        string? duration = null; if (root.TryGetProperty("duration", out var d) && d.TryGetDouble(out var seconds)) duration = "Duración · " + TimeSpan.FromSeconds(seconds).ToString(seconds >= 3600 ? "h\\:mm\\:ss" : "m\\:ss");
+        double? durationSeconds = null; string? duration = null; if (root.TryGetProperty("duration", out var d) && d.TryGetDouble(out var seconds)) { durationSeconds = seconds; duration = "Duración · " + TimeSpan.FromSeconds(seconds).ToString(seconds >= 3600 ? "h\\:mm\\:ss" : "m\\:ss"); }
         var date = Get("upload_date"); if (date is { Length: 8 }) date = $"{date[..4]}-{date[4..6]}-{date[6..]}";
         var height = Get("height"); var resolution = height is not null ? $"Resolución · {height}p" : null;
         var size = Get("filesize_approx") ?? Get("filesize"); if (long.TryParse(size, out var bytes)) size = "Tamaño aprox. · " + (bytes / 1048576d).ToString("N1") + " MB"; else size = null;
         string? formats = null; if (root.TryGetProperty("formats", out var list) && list.ValueKind == JsonValueKind.Array) { var heights = list.EnumerateArray().Where(f => f.TryGetProperty("height", out _)).Select(f => f.GetProperty("height").GetInt32()).Distinct().OrderDescending().Take(5).ToArray(); if (heights.Length > 0) formats = "Calidades · " + string.Join(" / ", heights.Select(h => h + "p")); }
-        return new VideoPreview(Get("title") ?? "Video sin título", Get("uploader") ?? Get("channel"), duration, date is null ? null : "Publicado · " + date, resolution, size, Get("thumbnail"), formats);
+        return new VideoPreview(Get("title") ?? "Video sin título", Get("uploader") ?? Get("channel"), duration, date is null ? null : "Publicado · " + date, resolution, size, Get("thumbnail"), formats, Get("webpage_url"), durationSeconds);
     }
 }
 
