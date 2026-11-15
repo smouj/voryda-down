@@ -15,6 +15,9 @@ public record DownloadSettings(
     string SaveFolder,
     string FileName)
 {
+    public bool EmbedMetadata { get; init; }
+    public bool EmbedThumbnail { get; init; }
+    public bool WriteSubtitles { get; init; }
     /// <summary>
     /// Returns the yt-dlp format string for the selected quality preset.
     /// </summary>

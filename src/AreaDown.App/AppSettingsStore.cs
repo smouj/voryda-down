@@ -12,6 +12,10 @@ public sealed record AppSettings(
     string LastQuality,
     string? LastUrl)
 {
+    public string FileName { get; init; } = "%(title)s.%(ext)s";
+    public bool EmbedMetadata { get; init; } = true;
+    public bool EmbedThumbnail { get; init; }
+    public bool WriteSubtitles { get; init; }
     private static readonly string SettingsPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "AreaDown", "settings.json");

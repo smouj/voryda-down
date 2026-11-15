@@ -9,7 +9,7 @@
 <h1 align="center">Voryda Down</h1>
 
 <p align="center">
-  <strong>Paste a media URL, choose a format and download.</strong>
+  <strong>Preview a media link, choose a format and download with confidence.</strong>
 </p>
 
 <p align="center">
@@ -36,10 +36,14 @@
 
 ## Features
 
+- Preview title, channel, duration, upload date, thumbnail, approximate size and available resolutions before downloading.
 - Download a video using Best, 1080p, 720p or 480p quality options.
 - Save the best available audio stream in M4A format.
 - Set optional start and end timestamps using seconds, <code>MM:SS</code> or <code>HH:MM:SS</code>.
 - View progress, speed and estimated time when yt-dlp reports those values.
+- Embed media metadata and thumbnails, and optionally save available subtitles.
+- Customize the download folder and output filename template.
+- Check yt-dlp and FFmpeg availability in the app.
 - Cancel an active download.
 - Keep playlists disabled; each operation targets a single item.
 - Minimize the app to the system tray and restore it later.
@@ -50,7 +54,8 @@ The project metadata declares version **1.0.0**. No public GitHub Release or rel
 
 ## Screenshot
 
-![Voryda Down screenshot](docs/screenshots/voryda-down.png)
+A current screenshot will be added after visual verification of the rebuilt Windows app.
+
 
 *The screenshot shows the current Windows application.*
 
@@ -69,11 +74,11 @@ The available streams and extraction behavior depend on the source service and t
 
 ## Usage
 
-1. Enter an HTTP or HTTPS media URL.
-2. Select a video quality or **Audio only (M4A)**.
-3. Optionally set a start and end time.
-4. Choose the destination folder.
-5. Start the download. Use **Cancel** to stop the active operation.
+1. Enter an HTTP or HTTPS media URL and select **Ver video** to load its details.
+2. Review the thumbnail, title, channel, duration and the formats reported by yt-dlp.
+3. Select a video quality or **Audio only (M4A)**.
+4. Optionally set a start and end time, output filename and metadata/subtitle options.
+5. Choose the destination folder and start the download. Use **Cancelar** to stop it.
 
 Timestamp examples:
 
@@ -87,7 +92,7 @@ Timestamp examples:
 | --- | --- |
 | Settings | <code>%APPDATA%\AreaDown\settings.json</code> |
 | Default download folder | <code>%USERPROFILE%\Downloads</code> |
-| Remembered values | Last URL, quality and destination folder |
+| Remembered values | Last URL, quality, destination folder, filename template and metadata/subtitle options |
 
 The <code>AreaDown</code> settings path and internal project names are retained for compatibility while the public product name is Voryda Down.
 
@@ -107,7 +112,9 @@ The <code>AreaDown</code> settings path and internal project names are retained 
 
 Create a self-contained Windows x64 build:
 
-    dotnet publish src\AreaDown.App -c Release -r win-x64 --self-contained
+    dotnet publish src\AreaDown.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish\win-x64
+
+This build includes the .NET runtime. `yt-dlp.exe` and `ffmpeg.exe` remain separate tools; place them next to `AreaDown.exe` (or install them on `PATH`). The `publish/win-x64` output is local build output and is not tracked in Git.
 
 This repository keeps its product and developer guidance in this README.
 
@@ -134,4 +141,3 @@ Voryda Down is distributed under the [MIT License](LICENSE).
   <a href="https://github.com/smouj/voryda-down">Down</a> ·
   <a href="https://github.com/smouj/voryda-cut">Cut</a>
 </p>
-

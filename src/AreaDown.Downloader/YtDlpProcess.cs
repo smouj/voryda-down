@@ -73,6 +73,42 @@ public sealed class YtDlpProcess : IDisposable
             "ffmpeg.exe not found. Place it next to AreaDown.exe or install it on your PATH.");
     }
 
+    /// <summary>Fetches a single item's metadata as JSON for the pre-download preview.</summary>
+    public static async Task<string> GetVideoInfoAsync(string url, CancellationToken cancellationToken = default)
+    {
+        var executable = FindYtDlp();
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = executable,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = System.Text.Encoding.UTF8,
+                StandardErrorEncoding = System.Text.Encoding.UTF8
+            }
+        };
+        process.StartInfo.ArgumentList.Add("--dump-single-json");
+        process.StartInfo.ArgumentList.Add("--no-warnings");
+        process.StartInfo.ArgumentList.Add("--no-playlist");
+        process.StartInfo.ArgumentList.Add("--no-check-formats");
+        process.StartInfo.ArgumentList.Add(url);
+        process.Start();
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        await process.WaitForExitAsync(cancellationToken);
+        var output = await outputTask;
+        if (process.ExitCode != 0)
+        {
+            var error = await errorTask;
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "yt-dlp no pudo leer los datos de este enlace." : error.Trim());
+        }
+        _ = await errorTask;
+        return output;
+    }
+
     /// <summary>
     /// Starts a yt-dlp download with the given settings.
     /// </summary>
@@ -91,7 +127,6 @@ public sealed class YtDlpProcess : IDisposable
             StartInfo = new ProcessStartInfo
             {
                 FileName = ytDlpPath,
-                Arguments = args,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
@@ -101,6 +136,9 @@ public sealed class YtDlpProcess : IDisposable
             },
             EnableRaisingEvents = true
         };
+
+        foreach (var arg in args)
+            _process.StartInfo.ArgumentList.Add(arg);
 
         _process.OutputDataReceived += OnOutputDataReceived;
         _process.ErrorDataReceived += OnErrorDataReceived;
@@ -132,7 +170,7 @@ public sealed class YtDlpProcess : IDisposable
     /// <summary>
     /// Builds the yt-dlp command-line arguments from the download settings.
     /// </summary>
-    private static string BuildArguments(DownloadSettings settings, string? ffmpegPath)
+    private static List<string> BuildArguments(DownloadSettings settings, string? ffmpegPath)
     {
         var args = new List<string>();
 
@@ -146,13 +184,13 @@ public sealed class YtDlpProcess : IDisposable
 
         // Output template
         args.Add("-o");
-        args.Add($"\"{settings.GetOutputTemplate()}\"");
+        args.Add(settings.GetOutputTemplate());
 
         // FFmpeg location
         if (ffmpegPath is not null)
         {
             args.Add("--ffmpeg-location");
-            args.Add($"\"{ffmpegPath}\"");
+            args.Add(ffmpegPath);
         }
 
         // Timestamp clipping
@@ -165,7 +203,8 @@ public sealed class YtDlpProcess : IDisposable
 
         // Progress template for machine-readable output
         args.Add("--progress-template");
-        args.Add("\"%(progress.downloaded_bytes)s/%(progress.total_bytes)s %(progress.speed)s %(progress.eta)s\"");
+        args.Add("download:");
+        args.Add("%(progress.downloaded_bytes)s/%(progress.total_bytes)s %(progress.speed)s %(progress.eta)s");
 
         // No playlist
         args.Add("--no-playlist");
@@ -173,10 +212,14 @@ public sealed class YtDlpProcess : IDisposable
         // Verbose enough to get progress
         args.Add("--newline");
 
-        // The URL
-        args.Add($"\"{settings.Url}\"");
+        if (settings.EmbedMetadata && settings.Quality != "audio") args.Add("--embed-metadata");
+        if (settings.EmbedThumbnail && settings.Quality == "audio") args.Add("--embed-thumbnail");
+        if (settings.WriteSubtitles && settings.Quality != "audio") { args.Add("--write-subs"); args.Add("--write-auto-subs"); args.Add("--sub-langs"); args.Add("all,-live_chat"); }
 
-        return string.Join(" ", args);
+        // The URL
+        args.Add(settings.Url);
+
+        return args;
     }
 
     private void OnOutputDataReceived(object sender, DataReceivedEventArgs e)
